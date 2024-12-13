@@ -9,7 +9,7 @@ VENV_DIR ?= .venv
 UV_PROJECT_ENVIRONMENT=${VENV_DIR}
 
 # allow overriding which extras are installed
-VENV_EXTRAS ?= --extra gui --extra dev --extra jax --extra riscv
+VENV_EXTRAS ?= --extra dev
 
 # default lit options
 LIT_OPTIONS ?= -v --order=smart
