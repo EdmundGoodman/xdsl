@@ -63,11 +63,13 @@ def run_benchmark(args: Namespace, benchmarks: dict[str, Callable[[], Any]]) -> 
 
 
 def timeit_benchmark(
-    args: Namespace, benchmarks: dict[str, Callable[[], Any]], number: int = 3
+    args: Namespace, benchmarks: dict[str, Callable[[], Any]], number: int = 50
 ) -> None:
     """Use timeit to run a benchmark."""
     benchmark_runs = get_benchmark_runs(args, benchmarks)
     for name, test in benchmark_runs:
+        # First warmup, then test
+        timeit.timeit(test, number=min(number, 3))
         print(
             f"Test {name} ran in: {timeit.timeit(test, number=number) / number:.10f}s"
         )

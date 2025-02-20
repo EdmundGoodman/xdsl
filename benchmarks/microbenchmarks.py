@@ -5,11 +5,13 @@ from __future__ import annotations
 
 import importlib
 
+import xdsl.dialects.affine
 import xdsl.dialects.arith
 import xdsl.dialects.builtin
-from xdsl.dialects.builtin import LocationAttr
-from xdsl.dialects.gpu import TerminatorOp
-from xdsl.dialects.test import TestOp
+import xdsl.dialects.gpu
+import xdsl.dialects.linalg
+import xdsl.dialects.pdl
+import xdsl.dialects.test
 from xdsl.ir import Block
 from xdsl.irdl import (
     IRDLOperation,
@@ -36,14 +38,16 @@ class EmptyOp(IRDLOperation):
     name = "empty"
 
     def __init__(self):
-        super().__init__(attributes={"testbench.empty": LocationAttr})
+        super().__init__(
+            attributes={"testbench.empty": xdsl.dialects.builtin.LocationAttr}
+        )
 
 
 class IRTraversal:
     """Benchmark the time to traverse xDSL IR."""
 
     EXAMPLE_BLOCK_NUM_OPS = 1_000
-    EXAMPLE_OPS = (TestOp() for _ in range(EXAMPLE_BLOCK_NUM_OPS))
+    EXAMPLE_OPS = (xdsl.dialects.test.TestOp() for _ in range(EXAMPLE_BLOCK_NUM_OPS))
     EXAMPLE_BLOCK = Block(ops=EXAMPLE_OPS)
 
     def time_iterate_ops(self) -> None:
@@ -74,34 +78,37 @@ class IRTraversal:
 
 
 class Extensibility:
-    """Benchmark the time to check interface and trait properties."""
+    """Benchmark the time to check interface and trait properties.
+
+    Note that the class instantiation includes
+    `from xdsl.dialects.builtin import UnregisteredOp` to avoid measuring
+    the cost of import machinery in the `has_trait` method.
+    """
 
     from xdsl.dialects.builtin import (
         UnregisteredOp,  # noqa: F401 # pyright: ignore[reportUnusedImport]
     )
 
-    IS_TERMINATOR_OP = TerminatorOp()
+    IS_TERMINATOR_OP = xdsl.dialects.gpu.TerminatorOp()
 
     def time_interface_check(self) -> None:
         """Time checking the class hierarchy of an operation.
 
-        Indirect comparison with `assert( dyn_cast<InterfaceT>(op) )` at
+        Indirect comparison with `assert( dyn_cast<OpT>(op) )` at
         9.68ns/op.
 
         This is not a direct comparison as xDSL does not use the
         class hierarchy to express interface functionality, but is interesting
         to compare `isinstance` with `dyn_cast` in context.
         """
-        assert isinstance(Extensibility.IS_TERMINATOR_OP, TerminatorOp)
+        assert isinstance(
+            Extensibility.IS_TERMINATOR_OP, xdsl.dialects.gpu.TerminatorOp
+        )
 
     def time_trait_check(self) -> None:
         """Time checking the trait of an operation.
 
         Comparison with `assert( op->hasTrait<TraitT>(op) )` at 18.1ns/op.
-
-        Note that the class instantiation includes
-        `from xdsl.dialects.builtin import UnregisteredOp` to avoid measuring
-        the cost of import machinery in the `has_trait` method.
         """
         assert Extensibility.IS_TERMINATOR_OP.has_trait(IsTerminator)
 
@@ -109,10 +116,6 @@ class Extensibility:
         """Time checking the trait of an operation.
 
         Comparison with `assert( ! op->hasTrait<TraitT>(op) )` at 13.4ns/op.
-
-        Note that the class instantiation includes
-        `from xdsl.dialects.builtin import UnregisteredOp` to avoid measuring
-        the cost of import machinery in the `has_trait` method.
         """
         assert not Extensibility.IS_TERMINATOR_OP.has_trait(NoTerminator)
 
@@ -142,20 +145,40 @@ class OpCreation:
 
 
 class LoadDialects:
-    """Benchmark loading dialects in xDSL."""
+    """Benchmark loading dialects in xDSL.
+
+    Note that this must be done with `importlib.reload` rather than just
+    directly importing with `from xdsl.dialects.arith import Arith` to avoid
+    tests interacting with each other.
+    """
 
     def time_arith_load(self) -> None:
-        """Time loading the `arith` dialect.
-
-        Note that this must be done with `importlib.reload` rather than just
-        directly importing with `from xdsl.dialects.arith import Arith` to avoid
-        tests interacting with each other.
-        """
+        """Time loading the `arith` dialect."""
         importlib.reload(xdsl.dialects.arith)
+
+    def time_affine_load(self) -> None:
+        """Time loading the `affine` dialect."""
+        importlib.reload(xdsl.dialects.affine)
 
     def time_builtin_load(self) -> None:
         """Time loading the `builtin` dialect."""
         importlib.reload(xdsl.dialects.builtin)
+
+    def time_linalg_load(self) -> None:
+        """Time loading the `linalg` dialect."""
+        importlib.reload(xdsl.dialects.linalg)
+
+    def time_test_load(self) -> None:
+        """Time loading the `test` dialect."""
+        importlib.reload(xdsl.dialects.test)
+
+    def time_pdl_load(self) -> None:
+        """Time loading the `pdl` dialect."""
+        importlib.reload(xdsl.dialects.pdl)
+
+    def time_gpu_load(self) -> None:
+        """Time loading the `gpu` dialect."""
+        importlib.reload(xdsl.dialects.gpu)
 
 
 class ImportClasses:
@@ -195,7 +218,12 @@ if __name__ == "__main__":
         "OpCreation.operation_create": OP_CREATION.time_operation_create,
         "OpCreation.operation_clone": OP_CREATION.time_operation_clone,
         "LoadDialects.arith_load": LOAD_DIALECTS.time_arith_load,
+        "LoadDialects.affine_load": LOAD_DIALECTS.time_affine_load,
         "LoadDialects.builtin_load": LOAD_DIALECTS.time_builtin_load,
+        "LoadDialects.linalg_load": LOAD_DIALECTS.time_linalg_load,
+        "LoadDialects.test_load": LOAD_DIALECTS.time_test_load,
+        "LoadDialects.pdl_load": LOAD_DIALECTS.time_pdl_load,
+        "LoadDialects.gpu_load": LOAD_DIALECTS.time_gpu_load,
         "ImportClasses.import_xdsl_opt": IMPORT_CLASSES.ignore_time_import_xdsl_opt,
     }
     profile(BENCHMARKS)
