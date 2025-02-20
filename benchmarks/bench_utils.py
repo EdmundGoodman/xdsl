@@ -19,7 +19,9 @@ def parse_arguments(benchmark_names: list[str]) -> ArgumentParser:
     parser = ArgumentParser()
 
     parser.add_argument(
-        "test", choices=benchmark_names, help="the name of the benchmark to run"
+        "test",
+        choices=benchmark_names + ["all"],
+        help="the name of the benchmark to run",
     )
     parser.add_argument(
         "profiler",
@@ -42,36 +44,45 @@ def parse_arguments(benchmark_names: list[str]) -> ArgumentParser:
     return parser
 
 
-def get_benchmark(
+def get_benchmark_runs(
     args: Namespace, benchmarks: dict[str, Callable[[], Any]]
-) -> tuple[str, Callable[[], None]]:
+) -> list[tuple[str, Callable[[], None]]]:
     """Get the benchmark to profile."""
-    return (args.test, benchmarks[args.test])
+    if args.test == "all":
+        return [(name, test) for name, test in benchmarks.items()]
+    return [(args.test, benchmarks[args.test])]
 
 
 def run_benchmark(args: Namespace, benchmarks: dict[str, Callable[[], Any]]) -> None:
     """Directly run a benchmark."""
-    name, test = get_benchmark(args, benchmarks)
-    start_time = time.time()
-    test()
-    print(f"Test {name} ran in: {time.time() - start_time:.5f}s")
+    benchmark_runs = get_benchmark_runs(args, benchmarks)
+    for name, test in benchmark_runs:
+        start_time = time.time()
+        test()
+        print(f"Test {name} ran in: {time.time() - start_time:.5f}s")
 
 
 def timeit_benchmark(
-    args: Namespace, benchmarks: dict[str, Callable[[], Any]], number: int = 1
+    args: Namespace, benchmarks: dict[str, Callable[[], Any]], number: int = 3
 ) -> None:
     """Use timeit to run a benchmark."""
-    name, test = get_benchmark(args, benchmarks)
-    print(f"Test {name} ran in: {timeit.timeit(test, number=number):.5f}s")
+    benchmark_runs = get_benchmark_runs(args, benchmarks)
+    for name, test in benchmark_runs:
+        print(
+            f"Test {name} ran in: {timeit.timeit(test, number=number) / number:.10f}s"
+        )
 
 
 def cprofile_benchmark(
     args: Namespace, benchmarks: dict[str, Callable[[], Any]]
 ) -> Path:
     """Use cProfile to profile a benchmark."""
-    name, _ = get_benchmark(args, benchmarks)
+    benchmark_runs = get_benchmark_runs(args, benchmarks)
+    if len(benchmark_runs) != 1:
+        raise ValueError("Cannot profile multiple benchmarks together")
+    name, test = benchmark_runs[0]
     output_prof = args.output / f"{name}.prof"
-    cProfile.run(f"{name}()", str(output_prof))
+    cProfile.run(f"{test.__name__}()", str(output_prof))
     return output_prof
 
 
@@ -81,7 +92,10 @@ def viztracer_benchmark(
     """Use VizTracer to profile a benchmark."""
     from viztracer import VizTracer  # pyright: ignore[reportMissingTypeStubs]
 
-    name, test = get_benchmark(args, benchmarks)
+    benchmark_runs = get_benchmark_runs(args, benchmarks)
+    if len(benchmark_runs) != 1:
+        raise ValueError("Cannot profile multiple benchmarks together")
+    name, test = benchmark_runs[0]
     output_prof = args.output / f"{name}.json"
     with VizTracer(output_file=str(output_prof)):
         test()
