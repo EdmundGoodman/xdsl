@@ -1,142 +1,154 @@
 #!/usr/bin/env python3
 """Benchmarks for the pipeline stages of the xDSL implementation."""
 
+from io import StringIO
 from pathlib import Path
 
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import Operation
 from xdsl.parser import Parser as XdslParser
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriteWalker,
-)
-from xdsl.transforms.canonicalize import CanonicalizationRewritePattern
-from xdsl.transforms.convert_scf_to_cf import ConvertScfToCf
-from xdsl.transforms.dead_code_elimination import RemoveUnusedOperations, region_dce
+from xdsl.printer import Printer
+from xdsl.transforms.canonicalize import CanonicalizePass
+from xdsl.transforms.constant_fold_interp import ConstantFoldInterpPass
 from xdsl.utils.lexer import Input
 from xdsl.utils.mlir_lexer import MLIRLexer, MLIRTokenKind
 
-CTX = MLContext(allow_unregistered=True)
+CTX = Context(allow_unregistered=True)
+PRINT_STREAM = StringIO()
 
 BENCHMARKS_DIR = Path(__file__).parent
 EXTRA_MLIR_DIR = BENCHMARKS_DIR / "resources" / "extra_mlir"
-MLIR_FILES: dict[str, Path] = {
-    "apply_pdl_extra_file": EXTRA_MLIR_DIR
-    / "filecheck__transforms__apply-pdl__apply_pdl_extra_file.mlir",
-    "arith-add-immediate-zero": EXTRA_MLIR_DIR
-    / "filecheck__transforms__arith-add-immediate-zero.mlir",
-    "large_dense_attr": EXTRA_MLIR_DIR / "large_dense_attr.mlir",
-    "large_dense_attr_hex": EXTRA_MLIR_DIR / "large_dense_attr.mlir",
-    "empty_program": EXTRA_MLIR_DIR / "xdsl_opt__empty_program.mlir",
-}
 
 
-class Lexer:
-    """Benchmark the xDSL lexer on MLIR files."""
+class Component:
+    """Parent class containing workload paths."""
+
+    WORKLOAD_EMPTY = EXTRA_MLIR_DIR / "xdsl_opt__empty_program.mlir"
+    WORKLOAD_CONSTANT_100 = EXTRA_MLIR_DIR / "constant_folding_100.mlir"
+    WORKLOAD_CONSTANT_1000 = EXTRA_MLIR_DIR / "constant_folding_1000.mlir"
+    WORKLOAD_LARGE_DENSE_ATTR = EXTRA_MLIR_DIR / "large_dense_attr.mlir"
+    WORKLOAD_LARGE_DENSE_ATTR_HEX = EXTRA_MLIR_DIR / "large_dense_attr_hex.mlir"
 
     @classmethod
-    def lex_input(cls, lexer_input: Input) -> None:
-        """Lex an xDSL input."""
+    def lex_file(cls, mlir_file: Path) -> None:
+        """Lex a mlir file."""
+        contents = mlir_file.read_text()
+        lexer_input = Input(contents, str(mlir_file))
         lexer = MLIRLexer(lexer_input)
         while lexer.lex().kind is not MLIRTokenKind.EOF:
             pass
 
     @classmethod
-    def lex_file(cls, mlir_file: Path) -> None:
-        """Lex a mlir file."""
-        print(mlir_file)
+    def parse_operation(cls, mlir_file: Path) -> Operation:
+        """Parse a MLIR file as an operation."""
         contents = mlir_file.read_text()
-        lexer_input = Input(contents, str(mlir_file))
-        Lexer.lex_input(lexer_input)
-
-    def time_apply_pdl_extra_file(self) -> None:
-        """Time lexing the `apply_pdl_extra_file.mlir` file."""
-        Lexer.lex_file(MLIR_FILES["apply_pdl_extra_file"])
-
-    def time_add(self) -> None:
-        """Time lexing the `arith-add-immediate-zero.mlir` file."""
-        Lexer.lex_file(MLIR_FILES["arith-add-immediate-zero"])
-
-    def ignore_time_dense_attr(self) -> None:
-        """Time lexing a 1024x1024xi8 dense attribute."""
-        Lexer.lex_file(MLIR_FILES["large_dense_attr"])
-
-    def ignore_time_dense_attr_hex(self) -> None:
-        """Time lexing a 1024x1024xi8 dense attribute given as a hex string."""
-        Lexer.lex_file(MLIR_FILES["large_dense_attr_hex"])
-
-    def time_empty_program(self) -> None:
-        """Time lexing an empty program."""
-        Lexer.lex_file(MLIR_FILES["empty_program"])
-
-
-class Parser:
-    """Benchmark the xDSL parser on MLIR files."""
-
-    @classmethod
-    def parse_input(cls, parser_input: str) -> Operation:
-        """Parse a string."""
-        parser = XdslParser(CTX, parser_input)
+        parser = XdslParser(CTX, contents)
         return parser.parse_op()
 
     @classmethod
-    def parse_file(cls, mlir_file: Path) -> Operation:
-        """Parse a MLIR file."""
+    def parse_module(cls, mlir_file: Path) -> ModuleOp:
+        """Parse a MLIR file as a module."""
         contents = mlir_file.read_text()
-        return Parser.parse_input(contents)
+        parser = XdslParser(CTX, contents)
+        return parser.parse_module()
 
-    def time_apply_pdl_extra_file(self) -> None:
-        """Time parsing the `apply_pdl_extra_file.mlir` file."""
-        Parser.parse_file(MLIR_FILES["apply_pdl_extra_file"])
+    @classmethod
+    def constant_fold_module(cls, module: ModuleOp) -> ModuleOp:
+        """Apply the constant folding pattern rewriter to a module."""
+        ConstantFoldInterpPass().apply(CTX, module)
+        return module
 
-    def time_add(self) -> None:
-        """Time parsing the `arith-add-immediate-zero.mlir` file."""
-        Parser.parse_file(MLIR_FILES["arith-add-immediate-zero"])
+    @classmethod
+    def canonicalize_module(cls, module: ModuleOp) -> ModuleOp:
+        """Apply the canonicalization pattern rewriter to a module."""
+        CanonicalizePass().apply(CTX, module)
+        return module
+
+    @classmethod
+    def verify_module(cls, module: ModuleOp) -> None:
+        """Verify a module."""
+        module.verify()
+
+    @classmethod
+    def print_module(cls, module: ModuleOp) -> None:
+        """Print a module."""
+        Printer(stream=PRINT_STREAM).print_op(module)
+
+
+class LexPhase(Component):
+    """Benchmark the xDSL lexer on MLIR files."""
+
+    def time_empty_program(self) -> None:
+        """Time lexing an empty program."""
+        Component.lex_file(Component.WORKLOAD_EMPTY)
+
+    def time_constant_100(self) -> None:
+        """Time lexing constant folding for 1000 items."""
+        Component.lex_file(Component.WORKLOAD_CONSTANT_100)
+
+    def ignore_time_dense_attr(self) -> None:
+        """Time lexing a 1024x1024xi8 dense attribute."""
+        Component.lex_file(Component.WORKLOAD_LARGE_DENSE_ATTR)
+
+    def ignore_time_dense_attr_hex(self) -> None:
+        """Time lexing a 1024x1024xi8 dense attribute given as a hex string."""
+        Component.lex_file(Component.WORKLOAD_LARGE_DENSE_ATTR_HEX)
+
+
+class ParsePhase(Component):
+    """Benchmark the xDSL parser on MLIR files."""
+
+    def time_constant_100(self) -> None:
+        """Time parsing constant folding for 100 items."""
+        Component.parse_operation(Component.WORKLOAD_CONSTANT_100)
 
     def ignore_time_dense_attr(self) -> None:
         """Time parsing a 1024x1024xi8 dense attribute."""
-        Parser.parse_file(MLIR_FILES["large_dense_attr"])
+        Component.parse_operation(Component.WORKLOAD_LARGE_DENSE_ATTR)
 
     def ignore_time_dense_attr_hex(self) -> None:
         """Time parsing a 1024x1024xi8 dense attribute given as a hex string."""
-        Parser.parse_file(MLIR_FILES["large_dense_attr_hex"])
+        Component.parse_operation(Component.WORKLOAD_LARGE_DENSE_ATTR_HEX)
 
 
-class PatternRewriter:
+class PatternRewritePhase(Component):
     """Benchmark rewriting in xDSL."""
 
-    PARSED_FILES: dict[str, ModuleOp] = {
-        name: XdslParser(CTX, file.read_text()).parse_module()
-        for name, file in MLIR_FILES.items()
-        if "filecheck__transforms" in str(file)
-    }
+    PARSED_CONSTANT_100 = Component.parse_module(Component.WORKLOAD_CONSTANT_100)
 
-    def time_apply_patterns(self) -> None:
-        """Time greedily pattern rewriting an operation."""
-        pattern = GreedyRewritePatternApplier(
-            [RemoveUnusedOperations(), CanonicalizationRewritePattern()]
-        )
-        PatternRewriteWalker(pattern, post_walk_func=region_dce).rewrite_module(
-            PatternRewriter.PARSED_FILES["apply_pdl_extra_file"]
-        )
+    def time_constant_100(self) -> None:
+        """Time pattern rewriting 100 items with the constant folding pass."""
+        Component.constant_fold_module(PatternRewritePhase.PARSED_CONSTANT_100)
 
-    def time_lower_scf_to_cf(self) -> None:
-        """Time lowering a module dialect."""
-        lowering_pass = ConvertScfToCf()
-        lowering_pass.apply(CTX, PatternRewriter.PARSED_FILES["apply_pdl_extra_file"])
+    def time_canonicalize_100(self) -> None:
+        """Time canonicalising constant folding for 1000 items."""
+        Component.canonicalize_module(PatternRewritePhase.PARSED_CONSTANT_100)
+
+    # def time_lower_scf_to_cf(self) -> None:
+    #     """Time lowering a module dialect."""
+    #     lowering_pass = ConvertScfToCf()
+    #     lowering_pass.apply(CTX, PatternRewriter.PARSED_FILES["apply_pdl_extra_file"])
 
 
-class Printer:
-    """Benchmark printing in xDSL."""
-
-    ...
-
-
-class Verifier:
+class VerifyPhase:
     """Benchmark verifying in xDSL."""
 
-    ...
+    PARSED_CONSTANT_100 = Component.parse_module(Component.WORKLOAD_CONSTANT_100)
+
+    def time_constant_100(self) -> None:
+        """Time verifying constant folding for 1000 items."""
+        Component.verify_module(VerifyPhase.PARSED_CONSTANT_100)
+
+
+class PrintPhase:
+    """Benchmark printing in xDSL."""
+
+    PARSED_CONSTANT_100 = Component.parse_module(Component.WORKLOAD_CONSTANT_100)
+
+    def time_constant_100(self) -> None:
+        """Time verifying constant folding for 1000 items."""
+        Component.print_module(PrintPhase.PARSED_CONSTANT_100)
 
 
 if __name__ == "__main__":
@@ -144,21 +156,23 @@ if __name__ == "__main__":
 
     from bench_utils import profile
 
-    LEXER = Lexer()
-    PARSER = Parser()
-    PATTERN_REWRITER = PatternRewriter()
+    LEXER = LexPhase()
+    PARSER = ParsePhase()
+    PATTERN_REWRITER = PatternRewritePhase()
+    VERIFIER = VerifyPhase()
+    PRINTER = PrintPhase()
 
     BENCHMARKS: dict[str, Callable[[], None]] = {
-        "Lexer.apply_pdl_extra_file": LEXER.time_apply_pdl_extra_file,
-        "Lexer.add": LEXER.time_add,
+        "Lexer.empty_program": LEXER.time_empty_program,
+        "Lexer.constant_100": LEXER.time_constant_100,
         "Lexer.dense_attr": LEXER.ignore_time_dense_attr,
         "Lexer.dense_attr_hex": LEXER.ignore_time_dense_attr_hex,
-        "Lexer.empty_program": LEXER.time_empty_program,
-        "Parser.apply_pdl_extra_file": PARSER.time_apply_pdl_extra_file,
-        "Parser.add": PARSER.time_add,
+        "Parser.constant_100": PARSER.time_constant_100,
         "Parser.dense_attr": PARSER.ignore_time_dense_attr,
         "Parser.dense_attr_hex": PARSER.ignore_time_dense_attr_hex,
-        "PatternRewriter.apply_patterns": PATTERN_REWRITER.time_apply_patterns,
-        "PatternRewriter.lower_scf_to_cf": PATTERN_REWRITER.time_lower_scf_to_cf,
+        "PatternRewriter.constant_100": PATTERN_REWRITER.time_constant_100,
+        "PatternRewriter.canonicalize_100": PATTERN_REWRITER.time_canonicalize_100,
+        "Verifier.constant_100": VERIFIER.time_constant_100,
+        "Printer.constant_100": PRINTER.time_constant_100,
     }
     profile(BENCHMARKS)
