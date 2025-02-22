@@ -12,8 +12,18 @@ EXTRA_MLIR_DIR = BENCHMARKS_DIR / "resources" / "extra_mlir"
 class ConstantFolding:
     """Benchmark running `xdsl-opt` on constant folding workloads."""
 
+    WORKLOAD_4 = str(EXTRA_MLIR_DIR / "constant_folding_4.mlir")
+    WORKLOAD_20 = str(EXTRA_MLIR_DIR / "constant_folding_4.mlir")
     WORKLOAD_100 = str(EXTRA_MLIR_DIR / "constant_folding_100.mlir")
     WORKLOAD_1000 = str(EXTRA_MLIR_DIR / "constant_folding_1000.mlir")
+
+    def ignore_time_4(self) -> None:
+        """Time constant folding for 4 items."""
+        xDSLOptMain(args=[ConstantFolding.WORKLOAD_4, "-p", "canonicalize"]).run()  # type: ignore[no-untyped-call]
+
+    def ignore_time_20(self) -> None:
+        """Time constant folding for 20 items."""
+        xDSLOptMain(args=[ConstantFolding.WORKLOAD_20, "-p", "canonicalize"]).run()  # type: ignore[no-untyped-call]
 
     def time_100(self) -> None:
         """Time constant folding for 100 items."""
@@ -144,6 +154,8 @@ if __name__ == "__main__":
     MISCELLANEOUS = Miscellaneous()
 
     BENCHMARKS = {
+        "ConstantFolding.4": CONSTANT_FOLDING.ignore_time_4,
+        "ConstantFolding.20": CONSTANT_FOLDING.ignore_time_20,
         "ConstantFolding.100": CONSTANT_FOLDING.time_100,
         "ConstantFolding.100_unverified": CONSTANT_FOLDING.time_100_unverified,
         "ConstantFolding.100_none": CONSTANT_FOLDING.time_100_none,

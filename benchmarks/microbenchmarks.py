@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import importlib
 
-import xdsl.dialects.affine
 import xdsl.dialects.arith
 import xdsl.dialects.builtin
 import xdsl.dialects.gpu
@@ -156,10 +155,6 @@ class LoadDialects:
         """Time loading the `arith` dialect."""
         importlib.reload(xdsl.dialects.arith)
 
-    def time_affine_load(self) -> None:
-        """Time loading the `affine` dialect."""
-        importlib.reload(xdsl.dialects.affine)
-
     def time_builtin_load(self) -> None:
         """Time loading the `builtin` dialect."""
         importlib.reload(xdsl.dialects.builtin)
@@ -218,12 +213,11 @@ if __name__ == "__main__":
         "OpCreation.operation_create": OP_CREATION.time_operation_create,
         "OpCreation.operation_clone": OP_CREATION.time_operation_clone,
         "LoadDialects.arith_load": LOAD_DIALECTS.time_arith_load,
-        "LoadDialects.affine_load": LOAD_DIALECTS.time_affine_load,
         "LoadDialects.builtin_load": LOAD_DIALECTS.time_builtin_load,
-        "LoadDialects.linalg_load": LOAD_DIALECTS.time_linalg_load,
-        "LoadDialects.test_load": LOAD_DIALECTS.time_test_load,
-        "LoadDialects.pdl_load": LOAD_DIALECTS.time_pdl_load,
         "LoadDialects.gpu_load": LOAD_DIALECTS.time_gpu_load,
+        "LoadDialects.linalg_load": LOAD_DIALECTS.time_linalg_load,
+        "LoadDialects.pdl_load": LOAD_DIALECTS.time_pdl_load,
+        "LoadDialects.test_load": LOAD_DIALECTS.time_test_load,
         "ImportClasses.import_xdsl_opt": IMPORT_CLASSES.ignore_time_import_xdsl_opt,
     }
     profile(BENCHMARKS)

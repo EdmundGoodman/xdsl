@@ -84,7 +84,11 @@ def cprofile_benchmark(
         raise ValueError("Cannot profile multiple benchmarks together")
     name, test = benchmark_runs[0]
     output_prof = args.output / f"{name}.prof"
-    cProfile.run(f"{test.__name__}()", str(output_prof))
+    profiler = cProfile.Profile()
+    profiler.enable()
+    test()
+    profiler.disable()
+    profiler.dump_stats(str(output_prof))
     return output_prof
 
 
