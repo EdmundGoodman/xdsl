@@ -107,7 +107,7 @@ class ParsePhase(Component):
         """Time parsing a 1024x1024xi8 dense attribute."""
         Component.parse_operation(Component.WORKLOAD_LARGE_DENSE_ATTR)
 
-    def ignore_time_dense_attr_hex(self) -> None:
+    def time_dense_attr_hex(self) -> None:
         """Time parsing a 1024x1024xi8 dense attribute given as a hex string."""
         Component.parse_operation(Component.WORKLOAD_LARGE_DENSE_ATTR_HEX)
 
@@ -116,14 +116,30 @@ class PatternRewritePhase(Component):
     """Benchmark rewriting in xDSL."""
 
     PARSED_CONSTANT_100 = Component.parse_module(Component.WORKLOAD_CONSTANT_100)
+    PARSED_CONSTANT_1000 = Component.parse_module(Component.WORKLOAD_CONSTANT_1000)
+    PARSED_LARGE_DENSE_ATTR_HEX = Component.parse_module(
+        Component.WORKLOAD_LARGE_DENSE_ATTR_HEX
+    )
 
     def time_constant_100(self) -> None:
         """Time pattern rewriting 100 items with the constant folding pass."""
         Component.constant_fold_module(PatternRewritePhase.PARSED_CONSTANT_100)
 
+    def time_constant_1000(self) -> None:
+        """Time pattern rewriting 1000 items with the constant folding pass."""
+        Component.constant_fold_module(PatternRewritePhase.PARSED_CONSTANT_1000)
+
     def time_canonicalize_100(self) -> None:
-        """Time canonicalising constant folding for 1000 items."""
+        """Time canonicalising constant folding for 100 items."""
         Component.canonicalize_module(PatternRewritePhase.PARSED_CONSTANT_100)
+
+    def time_canonicalize_1000(self) -> None:
+        """Time canonicalising constant folding for 1000 items."""
+        Component.canonicalize_module(PatternRewritePhase.PARSED_CONSTANT_1000)
+
+    def time_dense_attr_hex(self) -> None:
+        """Time canonicalising a 1024x1024xi8 dense attribute given as a hex string."""
+        Component.canonicalize_module(PatternRewritePhase.PARSED_LARGE_DENSE_ATTR_HEX)
 
     # def time_lower_scf_to_cf(self) -> None:
     #     """Time lowering a module dialect."""
@@ -135,20 +151,44 @@ class VerifyPhase:
     """Benchmark verifying in xDSL."""
 
     PARSED_CONSTANT_100 = Component.parse_module(Component.WORKLOAD_CONSTANT_100)
+    PARSED_CONSTANT_1000 = Component.parse_module(Component.WORKLOAD_CONSTANT_1000)
+    PARSED_LARGE_DENSE_ATTR_HEX = Component.parse_module(
+        Component.WORKLOAD_LARGE_DENSE_ATTR_HEX
+    )
 
     def time_constant_100(self) -> None:
-        """Time verifying constant folding for 1000 items."""
+        """Time verifying constant folding for 100 items."""
         Component.verify_module(VerifyPhase.PARSED_CONSTANT_100)
+
+    def time_constant_1000(self) -> None:
+        """Time verifying constant folding for 1000 items."""
+        Component.verify_module(VerifyPhase.PARSED_CONSTANT_1000)
+
+    def time_dense_attr_hex(self) -> None:
+        """Time verifying a 1024x1024xi8 dense attribute given as a hex string."""
+        Component.verify_module(VerifyPhase.PARSED_LARGE_DENSE_ATTR_HEX)
 
 
 class PrintPhase:
     """Benchmark printing in xDSL."""
 
     PARSED_CONSTANT_100 = Component.parse_module(Component.WORKLOAD_CONSTANT_100)
+    PARSED_CONSTANT_1000 = Component.parse_module(Component.WORKLOAD_CONSTANT_1000)
+    PARSED_LARGE_DENSE_ATTR_HEX = Component.parse_module(
+        Component.WORKLOAD_LARGE_DENSE_ATTR_HEX
+    )
 
     def time_constant_100(self) -> None:
-        """Time verifying constant folding for 1000 items."""
+        """Time printing constant folding for 100 items."""
         Component.print_module(PrintPhase.PARSED_CONSTANT_100)
+
+    def time_constant_1000(self) -> None:
+        """Time printing constant folding for 1000 items."""
+        Component.print_module(PrintPhase.PARSED_CONSTANT_1000)
+
+    def time_dense_attr_hex(self) -> None:
+        """Time printing a 1024x1024xi8 dense attribute given as a hex string."""
+        Component.print_module(PrintPhase.PARSED_LARGE_DENSE_ATTR_HEX)
 
 
 if __name__ == "__main__":
@@ -165,14 +205,21 @@ if __name__ == "__main__":
     BENCHMARKS: dict[str, Callable[[], None]] = {
         "Lexer.empty_program": LEXER.time_empty_program,
         "Lexer.constant_100": LEXER.time_constant_100,
-        "Lexer.dense_attr": LEXER.ignore_time_dense_attr,
+        # "Lexer.dense_attr": LEXER.ignore_time_dense_attr,
         "Lexer.dense_attr_hex": LEXER.ignore_time_dense_attr_hex,
         "Parser.constant_100": PARSER.time_constant_100,
-        "Parser.dense_attr": PARSER.ignore_time_dense_attr,
-        "Parser.dense_attr_hex": PARSER.ignore_time_dense_attr_hex,
+        # "Parser.dense_attr": PARSER.ignore_time_dense_attr,
+        "Parser.dense_attr_hex": PARSER.time_dense_attr_hex,
         "PatternRewriter.constant_100": PATTERN_REWRITER.time_constant_100,
         "PatternRewriter.canonicalize_100": PATTERN_REWRITER.time_canonicalize_100,
+        "PatternRewriter.constant_1000": PATTERN_REWRITER.time_constant_1000,
+        "PatternRewriter.canonicalize_1000": PATTERN_REWRITER.time_canonicalize_1000,
+        "PatternRewriter.dense_attr_hex": PATTERN_REWRITER.time_dense_attr_hex,
         "Verifier.constant_100": VERIFIER.time_constant_100,
+        "Verifier.constant_1000": VERIFIER.time_constant_1000,
+        "Verifier.dense_attr_hex": VERIFIER.time_dense_attr_hex,
         "Printer.constant_100": PRINTER.time_constant_100,
+        "Printer.constant_1000": PRINTER.time_constant_1000,
+        "Printer.dense_attr_hex": PRINTER.time_dense_attr_hex,
     }
     profile(BENCHMARKS)

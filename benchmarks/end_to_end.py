@@ -17,18 +17,6 @@ class ConstantFolding:
     WORKLOAD_100 = str(EXTRA_MLIR_DIR / "constant_folding_100.mlir")
     WORKLOAD_1000 = str(EXTRA_MLIR_DIR / "constant_folding_1000.mlir")
 
-    def ignore_time_4(self) -> None:
-        """Time constant folding for 4 items."""
-        xDSLOptMain(
-            args=[ConstantFolding.WORKLOAD_4, "-p", "constant-fold-interp"]
-        ).run()  # type: ignore[no-untyped-call]
-
-    def ignore_time_20(self) -> None:
-        """Time constant folding for 20 items."""
-        xDSLOptMain(
-            args=[ConstantFolding.WORKLOAD_20, "-p", "constant-fold-interp"]
-        ).run()  # type: ignore[no-untyped-call]
-
     def time_100(self) -> None:
         """Time constant folding for 100 items."""
         xDSLOptMain(
@@ -53,6 +41,18 @@ class ConstantFolding:
     def time_100_none(self) -> None:
         """Time applying no optimisations for 100 items."""
         xDSLOptMain(args=[ConstantFolding.WORKLOAD_100]).run()  # type: ignore[no-untyped-call]
+
+    def ignore_time_4(self) -> None:
+        """Time constant folding for 4 items."""
+        xDSLOptMain(
+            args=[ConstantFolding.WORKLOAD_4, "-p", "constant-fold-interp"]
+        ).run()  # type: ignore[no-untyped-call]
+
+    def ignore_time_20(self) -> None:
+        """Time constant folding for 20 items."""
+        xDSLOptMain(
+            args=[ConstantFolding.WORKLOAD_20, "-p", "constant-fold-interp"]
+        ).run()  # type: ignore[no-untyped-call]
 
     def ignore_time_1000(self) -> None:
         """Time constant folding for 1000 items."""
@@ -88,7 +88,7 @@ class Miscellaneous:
             ]
         ).run()  # type: ignore[no-untyped-call]
 
-    def ignore_time_dense_attr_hex(self) -> None:
+    def time_dense_attr_hex(self) -> None:
         """Time running a 1024x1024xi8 dense attribute given as a hex string."""
         xDSLOptMain(
             args=[
@@ -118,15 +118,15 @@ if __name__ == "__main__":
     MISCELLANEOUS = Miscellaneous()
 
     BENCHMARKS = {
-        "ConstantFolding.4": CONSTANT_FOLDING.ignore_time_4,
-        "ConstantFolding.20": CONSTANT_FOLDING.ignore_time_20,
         "ConstantFolding.100": CONSTANT_FOLDING.time_100,
         "ConstantFolding.100_unverified": CONSTANT_FOLDING.time_100_unverified,
         "ConstantFolding.100_canonicalize": CONSTANT_FOLDING.time_100_canonicalize,
         "ConstantFolding.100_none": CONSTANT_FOLDING.time_100_none,
+        "ConstantFolding.4": CONSTANT_FOLDING.ignore_time_4,
+        "ConstantFolding.20": CONSTANT_FOLDING.ignore_time_20,
         "ConstantFolding.1000": CONSTANT_FOLDING.ignore_time_1000,
         "Miscellaneous.empty_program": MISCELLANEOUS.time_empty_program,
         "Miscellaneous.dense_attr": MISCELLANEOUS.ignore_time_dense_attr,
-        "Miscellaneous.dense_attr_hex": MISCELLANEOUS.ignore_time_dense_attr_hex,
+        "Miscellaneous.dense_attr_hex": MISCELLANEOUS.time_dense_attr_hex,
     }
     profile(BENCHMARKS)
