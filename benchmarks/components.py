@@ -84,8 +84,12 @@ class LexPhase(Component):
         Component.lex_file(Component.WORKLOAD_EMPTY)
 
     def time_constant_100(self) -> None:
-        """Time lexing constant folding for 1000 items."""
+        """Time lexing constant folding for 100 items."""
         Component.lex_file(Component.WORKLOAD_CONSTANT_100)
+
+    def time_constant_1000(self) -> None:
+        """Time lexing constant folding for 1000 items."""
+        Component.lex_file(Component.WORKLOAD_CONSTANT_1000)
 
     def ignore_time_dense_attr(self) -> None:
         """Time lexing a 1024x1024xi8 dense attribute."""
@@ -102,6 +106,10 @@ class ParsePhase(Component):
     def time_constant_100(self) -> None:
         """Time parsing constant folding for 100 items."""
         Component.parse_operation(Component.WORKLOAD_CONSTANT_100)
+
+    def time_constant_1000(self) -> None:
+        """Time parsing constant folding for 100 items."""
+        Component.parse_operation(Component.WORKLOAD_CONSTANT_1000)
 
     def ignore_time_dense_attr(self) -> None:
         """Time parsing a 1024x1024xi8 dense attribute."""
@@ -141,10 +149,9 @@ class PatternRewritePhase(Component):
         """Time canonicalising a 1024x1024xi8 dense attribute given as a hex string."""
         Component.canonicalize_module(PatternRewritePhase.PARSED_LARGE_DENSE_ATTR_HEX)
 
-    # def time_lower_scf_to_cf(self) -> None:
-    #     """Time lowering a module dialect."""
-    #     lowering_pass = ConvertScfToCf()
-    #     lowering_pass.apply(CTX, PatternRewriter.PARSED_FILES["apply_pdl_extra_file"])
+    def time_lower_scf_to_cf(self) -> None:
+        """Time lowering a module from the `scf` to the `cf` dialect."""
+        raise NotImplementedError()
 
 
 class VerifyPhase:
@@ -205,9 +212,11 @@ if __name__ == "__main__":
     BENCHMARKS: dict[str, Callable[[], None]] = {
         "Lexer.empty_program": LEXER.time_empty_program,
         "Lexer.constant_100": LEXER.time_constant_100,
+        "Lexer.constant_1000": LEXER.time_constant_1000,
         # "Lexer.dense_attr": LEXER.ignore_time_dense_attr,
         "Lexer.dense_attr_hex": LEXER.ignore_time_dense_attr_hex,
         "Parser.constant_100": PARSER.time_constant_100,
+        "Parser.constant_1000": PARSER.time_constant_1000,
         # "Parser.dense_attr": PARSER.ignore_time_dense_attr,
         "Parser.dense_attr_hex": PARSER.time_dense_attr_hex,
         "PatternRewriter.constant_100": PATTERN_REWRITER.time_constant_100,

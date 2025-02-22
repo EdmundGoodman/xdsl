@@ -3,13 +3,8 @@
 
 from __future__ import annotations
 
-import importlib
-
-import xdsl.dialects.arith
 import xdsl.dialects.builtin
 import xdsl.dialects.gpu
-import xdsl.dialects.linalg
-import xdsl.dialects.pdl
 import xdsl.dialects.test
 from xdsl.ir import Block
 from xdsl.irdl import (
@@ -143,39 +138,6 @@ class OpCreation:
         OpCreation.CONSTANT_OPERATION.clone()
 
 
-class LoadDialects:
-    """Benchmark loading dialects in xDSL.
-
-    Note that this must be done with `importlib.reload` rather than just
-    directly importing with `from xdsl.dialects.arith import Arith` to avoid
-    tests interacting with each other.
-    """
-
-    def time_arith_load(self) -> None:
-        """Time loading the `arith` dialect."""
-        importlib.reload(xdsl.dialects.arith)
-
-    def time_builtin_load(self) -> None:
-        """Time loading the `builtin` dialect."""
-        importlib.reload(xdsl.dialects.builtin)
-
-    def time_linalg_load(self) -> None:
-        """Time loading the `linalg` dialect."""
-        importlib.reload(xdsl.dialects.linalg)
-
-    def time_test_load(self) -> None:
-        """Time loading the `test` dialect."""
-        importlib.reload(xdsl.dialects.test)
-
-    def time_pdl_load(self) -> None:
-        """Time loading the `pdl` dialect."""
-        importlib.reload(xdsl.dialects.pdl)
-
-    def time_gpu_load(self) -> None:
-        """Time loading the `gpu` dialect."""
-        importlib.reload(xdsl.dialects.gpu)
-
-
 class ImportClasses:
     """Benchmark the time to import xDSL classes."""
 
@@ -200,7 +162,6 @@ if __name__ == "__main__":
     EXTENSIBILITY = Extensibility()
     IMPORT_CLASSES = ImportClasses()
     IR_TRAVERSAL = IRTraversal()
-    LOAD_DIALECTS = LoadDialects()
     OP_CREATION = OpCreation()
 
     BENCHMARKS: dict[str, Callable[[], None]] = {
@@ -212,12 +173,6 @@ if __name__ == "__main__":
         "Extensibility.trait_check_neg": EXTENSIBILITY.time_trait_check_neg,
         "OpCreation.operation_create": OP_CREATION.time_operation_create,
         "OpCreation.operation_clone": OP_CREATION.time_operation_clone,
-        "LoadDialects.arith_load": LOAD_DIALECTS.time_arith_load,
-        "LoadDialects.builtin_load": LOAD_DIALECTS.time_builtin_load,
-        "LoadDialects.gpu_load": LOAD_DIALECTS.time_gpu_load,
-        "LoadDialects.linalg_load": LOAD_DIALECTS.time_linalg_load,
-        "LoadDialects.pdl_load": LOAD_DIALECTS.time_pdl_load,
-        "LoadDialects.test_load": LOAD_DIALECTS.time_test_load,
         "ImportClasses.import_xdsl_opt": IMPORT_CLASSES.ignore_time_import_xdsl_opt,
     }
     profile(BENCHMARKS)
