@@ -79,7 +79,7 @@ def timeit_benchmark(
     benchmark_runs = get_benchmark_runs(args, benchmarks)
     for name, test in benchmark_runs:
         me, _, std = warmed_timeit(test, number=number)
-        print(f"Test {name} ran in: {me:.10f} ± {std:.10f}s")
+        print(f"Test {name} ran in: {me:.3g} ± {std:.3g}s")
 
 
 def cprofile_benchmark(

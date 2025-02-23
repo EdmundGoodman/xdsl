@@ -226,21 +226,36 @@ def draw_comparison_chart() -> None:
         "Printing": PRINTER.time_constant_1000,
     }
     raw_phase_times = {
-        name: warmed_timeit(func)[0] for name, func in phase_functions.items()
+        name: warmed_timeit(func) for name, func in phase_functions.items()
     }
     phase_times = {
-        "Lexing": raw_phase_times["Lexing"],
-        # "Lexing + Parsing": raw_phase_times["Lexing + Parsing"],
-        "Parsing": raw_phase_times["Lexing + Parsing"] - raw_phase_times["Lexing"],
-        "Rewriting": raw_phase_times["Rewriting"],
-        "Verifying": raw_phase_times["Verifying"],  # * 2  # (in some cases...)
-        "Printing": raw_phase_times["Printing"],
+        "Lexing": raw_phase_times["Lexing"][0],
+        "Parsing": raw_phase_times["Lexing + Parsing"][0]
+        - raw_phase_times["Lexing"][0],
+        "Rewriting": raw_phase_times["Rewriting"][0],
+        "Verifying": raw_phase_times["Verifying"][0],  # * 2  # (in some cases...)
+        "Printing": raw_phase_times["Printing"][0],
+    }
+    phase_errors = {
+        "Lexing": raw_phase_times["Lexing"][2],
+        "Parsing": raw_phase_times["Lexing + Parsing"][2]
+        + raw_phase_times["Lexing"][2],
+        "Rewriting": raw_phase_times["Rewriting"][2],
+        "Verifying": raw_phase_times["Verifying"][2],  # * 2  # (in some cases...)
+        "Printing": raw_phase_times["Printing"][2],
     }
 
-    print("\n".join(f"{name}: {time:.7f}s" for name, time in phase_times.items()))
-    print(f"Total: {sum(phase_times.values())}s")
+    for name in phase_times:
+        if name in phase_errors:
+            print(f"{name}: {phase_times[name]:.3g} ± {phase_errors[name]:.3g}s")
+    print(f"Total: {sum(phase_times.values()):.3g} ± {sum(phase_errors.values()):.3g}s")
 
-    plt.bar(phase_times.keys(), phase_times.values())
+    plt.bar(
+        phase_times.keys(),
+        phase_times.values(),
+        yerr=[phase_errors[name] for name in phase_times],
+        error_kw={"capsize": 5},
+    )
     plt.title("Pipeline phase times for constant folding 1000 items")
     plt.xlabel("Pipeline phase")
     plt.ylabel("Time [s]")
