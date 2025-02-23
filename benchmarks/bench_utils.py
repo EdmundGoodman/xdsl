@@ -8,10 +8,20 @@ import timeit
 from argparse import ArgumentParser, Namespace
 from collections.abc import Callable
 from pathlib import Path
+from statistics import mean, median, stdev
 from typing import Any, cast
 
 DEFAULT_OUTPUT_DIRECTORY = Path(__file__).parent / "profiles"
 PROFILERS = ("run", "timeit", "snakeviz", "viztracer", "flameprof")
+
+
+def warmed_timeit(
+    func: Callable[[], Any], number: int = 10
+) -> tuple[float, float, float]:
+    """Time a function with warmup"""
+    timeit.timeit(func, number=3)
+    times = timeit.repeat(func, repeat=number, number=1)
+    return (mean(times), median(times), stdev(times))
 
 
 def parse_arguments(benchmark_names: list[str]) -> ArgumentParser:
@@ -68,11 +78,8 @@ def timeit_benchmark(
     """Use timeit to run a benchmark."""
     benchmark_runs = get_benchmark_runs(args, benchmarks)
     for name, test in benchmark_runs:
-        # First warmup, then test
-        timeit.timeit(test, number=min(number, 3))
-        print(
-            f"Test {name} ran in: {timeit.timeit(test, number=number) / number:.10f}s"
-        )
+        me, _, std = warmed_timeit(test, number=number)
+        print(f"Test {name} ran in: {me:.10f} ± {std:.10f}s")
 
 
 def cprofile_benchmark(

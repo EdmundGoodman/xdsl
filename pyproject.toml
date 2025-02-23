@@ -44,10 +44,10 @@ riscv = ["riscemu==2.2.7"]
 bench = [
     "asv>=0.6.4",
     "snakeviz>=2.2.2",
-    "tqdm>=4.67.1",
     "viztracer>=1.0.1",
     "flameprof>=0.4",
     "py-spy>=0.4.0",
+    "matplotlib>=3.10.0",
 ]
 
 [project.urls]

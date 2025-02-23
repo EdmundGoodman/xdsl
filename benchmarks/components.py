@@ -5,7 +5,8 @@ from io import StringIO
 from pathlib import Path
 
 from xdsl.context import Context
-from xdsl.dialects.builtin import ModuleOp
+from xdsl.dialects.arith import Arith
+from xdsl.dialects.builtin import Builtin, ModuleOp
 from xdsl.ir import Operation
 from xdsl.parser import Parser as XdslParser
 from xdsl.printer import Printer
@@ -15,7 +16,9 @@ from xdsl.utils.lexer import Input
 from xdsl.utils.mlir_lexer import MLIRLexer, MLIRTokenKind
 
 CTX = Context(allow_unregistered=True)
-PRINT_STREAM = StringIO()
+CTX.load_dialect(Arith)
+CTX.load_dialect(Builtin)
+MODULE_PRINTER = Printer(stream=StringIO())
 
 BENCHMARKS_DIR = Path(__file__).parent
 EXTRA_MLIR_DIR = BENCHMARKS_DIR / "resources" / "extra_mlir"
@@ -73,7 +76,7 @@ class Component:
     @classmethod
     def print_module(cls, module: ModuleOp) -> None:
         """Print a module."""
-        Printer(stream=PRINT_STREAM).print_op(module)
+        MODULE_PRINTER.print_op(module)
 
 
 class LexPhase(Component):
@@ -163,17 +166,23 @@ class VerifyPhase:
         Component.WORKLOAD_LARGE_DENSE_ATTR_HEX
     )
 
+    CANONICALIZED_CONSTANT_100 = Component.canonicalize_module(PARSED_CONSTANT_100)
+    CANONICALIZED_CONSTANT_1000 = Component.canonicalize_module(PARSED_CONSTANT_1000)
+    CANONICALIZED_LARGE_DENSE_ATTR_HEX = Component.canonicalize_module(
+        PARSED_LARGE_DENSE_ATTR_HEX
+    )
+
     def time_constant_100(self) -> None:
         """Time verifying constant folding for 100 items."""
-        Component.verify_module(VerifyPhase.PARSED_CONSTANT_100)
+        Component.verify_module(VerifyPhase.CANONICALIZED_CONSTANT_100)
 
     def time_constant_1000(self) -> None:
         """Time verifying constant folding for 1000 items."""
-        Component.verify_module(VerifyPhase.PARSED_CONSTANT_1000)
+        Component.verify_module(VerifyPhase.CANONICALIZED_CONSTANT_1000)
 
     def time_dense_attr_hex(self) -> None:
         """Time verifying a 1024x1024xi8 dense attribute given as a hex string."""
-        Component.verify_module(VerifyPhase.PARSED_LARGE_DENSE_ATTR_HEX)
+        Component.verify_module(VerifyPhase.CANONICALIZED_LARGE_DENSE_ATTR_HEX)
 
 
 class PrintPhase:
@@ -185,17 +194,57 @@ class PrintPhase:
         Component.WORKLOAD_LARGE_DENSE_ATTR_HEX
     )
 
+    CANONICALIZED_CONSTANT_100 = Component.canonicalize_module(PARSED_CONSTANT_100)
+    CANONICALIZED_CONSTANT_1000 = Component.canonicalize_module(PARSED_CONSTANT_1000)
+    CANONICALIZED_LARGE_DENSE_ATTR_HEX = Component.canonicalize_module(
+        PARSED_LARGE_DENSE_ATTR_HEX
+    )
+
     def time_constant_100(self) -> None:
         """Time printing constant folding for 100 items."""
-        Component.print_module(PrintPhase.PARSED_CONSTANT_100)
+        Component.print_module(PrintPhase.CANONICALIZED_CONSTANT_100)
 
     def time_constant_1000(self) -> None:
         """Time printing constant folding for 1000 items."""
-        Component.print_module(PrintPhase.PARSED_CONSTANT_1000)
+        Component.print_module(PrintPhase.CANONICALIZED_CONSTANT_1000)
 
     def time_dense_attr_hex(self) -> None:
         """Time printing a 1024x1024xi8 dense attribute given as a hex string."""
-        Component.print_module(PrintPhase.PARSED_LARGE_DENSE_ATTR_HEX)
+        Component.print_module(PrintPhase.CANONICALIZED_LARGE_DENSE_ATTR_HEX)
+
+
+def draw_comparison_chart() -> None:
+    """Compare the pipeline phase times for a workload."""
+    import matplotlib.pyplot as plt
+    from bench_utils import warmed_timeit
+
+    phase_functions = {
+        "Lexing": LEXER.time_constant_1000,
+        "Lexing + Parsing": PARSER.time_constant_1000,
+        "Rewriting": PATTERN_REWRITER.time_constant_1000,
+        "Verifying": VERIFIER.time_constant_1000,
+        "Printing": PRINTER.time_constant_1000,
+    }
+    raw_phase_times = {
+        name: warmed_timeit(func)[0] for name, func in phase_functions.items()
+    }
+    phase_times = {
+        "Lexing": raw_phase_times["Lexing"],
+        # "Lexing + Parsing": raw_phase_times["Lexing + Parsing"],
+        "Parsing": raw_phase_times["Lexing + Parsing"] - raw_phase_times["Lexing"],
+        "Rewriting": raw_phase_times["Rewriting"],
+        "Verifying": raw_phase_times["Verifying"],  # * 2  # (in some cases...)
+        "Printing": raw_phase_times["Printing"],
+    }
+
+    print("\n".join(f"{name}: {time:.7f}s" for name, time in phase_times.items()))
+    print(f"Total: {sum(phase_times.values())}s")
+
+    plt.bar(phase_times.keys(), phase_times.values())
+    plt.title("Pipeline phase times for constant folding 1000 items")
+    plt.xlabel("Pipeline phase")
+    plt.ylabel("Time [s]")
+    plt.show()
 
 
 if __name__ == "__main__":
@@ -208,6 +257,9 @@ if __name__ == "__main__":
     PATTERN_REWRITER = PatternRewritePhase()
     VERIFIER = VerifyPhase()
     PRINTER = PrintPhase()
+
+    draw_comparison_chart()
+    exit()
 
     BENCHMARKS: dict[str, Callable[[], None]] = {
         "Lexer.empty_program": LEXER.time_empty_program,
