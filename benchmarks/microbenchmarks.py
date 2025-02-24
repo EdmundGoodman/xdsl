@@ -3,26 +3,13 @@
 
 from __future__ import annotations
 
-import xdsl.dialects.builtin
-import xdsl.dialects.gpu
-import xdsl.dialects.test
 from xdsl.ir import Block
 from xdsl.irdl import (
     IRDLOperation,
     irdl_op_definition,
-    opt_successor_def,
     traits_def,
 )
-from xdsl.traits import IsTerminator, NoTerminator
-
-
-@irdl_op_definition
-class IsTerminatorOp(IRDLOperation):
-    """An operation that provides the IsTerminator trait."""
-
-    name = "test.is_terminator"
-    successor = opt_successor_def()
-    traits = traits_def(IsTerminator())
+from xdsl.traits import OpTrait
 
 
 @irdl_op_definition
@@ -31,17 +18,28 @@ class EmptyOp(IRDLOperation):
 
     name = "empty"
 
-    def __init__(self):
-        super().__init__(
-            attributes={"testbench.empty": xdsl.dialects.builtin.LocationAttr}
-        )
+
+class TraitA(OpTrait):
+    """An example trait."""
+
+
+class TraitB(OpTrait):
+    """An example trait."""
+
+
+@irdl_op_definition
+class HasTraitAOp(IRDLOperation):
+    """An operation which has a trait A."""
+
+    name = "has_trait_a"
+    traits = traits_def(TraitA())
 
 
 class IRTraversal:
     """Benchmark the time to traverse xDSL IR."""
 
     EXAMPLE_BLOCK_NUM_OPS = 1_000
-    EXAMPLE_OPS = (xdsl.dialects.test.TestOp() for _ in range(EXAMPLE_BLOCK_NUM_OPS))
+    EXAMPLE_OPS = (EmptyOp() for _ in range(EXAMPLE_BLOCK_NUM_OPS))
     EXAMPLE_BLOCK = Block(ops=EXAMPLE_OPS)
 
     def time_iterate_ops(self) -> None:
@@ -72,18 +70,9 @@ class IRTraversal:
 
 
 class Extensibility:
-    """Benchmark the time to check interface and trait properties.
+    """Benchmark the time to check interface and trait properties."""
 
-    Note that the class instantiation includes
-    `from xdsl.dialects.builtin import UnregisteredOp` to avoid measuring
-    the cost of import machinery in the `has_trait` method.
-    """
-
-    from xdsl.dialects.builtin import (
-        UnregisteredOp,  # noqa: F401 # pyright: ignore[reportUnusedImport]
-    )
-
-    IS_TERMINATOR_OP = xdsl.dialects.gpu.TerminatorOp()
+    HAS_TRAIT_A_OP = HasTraitAOp()
 
     def time_interface_check(self) -> None:
         """Time checking the class hierarchy of an operation.
@@ -95,30 +84,26 @@ class Extensibility:
         class hierarchy to express interface functionality, but is interesting
         to compare `isinstance` with `dyn_cast` in context.
         """
-        assert isinstance(
-            Extensibility.IS_TERMINATOR_OP, xdsl.dialects.gpu.TerminatorOp
-        )
+        assert isinstance(Extensibility.HAS_TRAIT_A_OP, HasTraitAOp)
 
     def time_trait_check(self) -> None:
         """Time checking the trait of an operation.
 
         Comparison with `assert( op->hasTrait<TraitT>(op) )` at 18.1ns/op.
         """
-        assert Extensibility.IS_TERMINATOR_OP.has_trait(IsTerminator)
+        assert Extensibility.HAS_TRAIT_A_OP.has_trait(TraitA)
 
     def time_trait_check_neg(self) -> None:
         """Time checking the trait of an operation.
 
         Comparison with `assert( ! op->hasTrait<TraitT>(op) )` at 13.4ns/op.
         """
-        assert not Extensibility.IS_TERMINATOR_OP.has_trait(NoTerminator)
+        assert not Extensibility.HAS_TRAIT_A_OP.has_trait(TraitB)
 
 
 class OpCreation:
     """Benchmark creating an operation in xDSL."""
 
-    CONSTANT_OPERATION_X_SIZE = 6
-    CONSTANT_OPERATION_Y_SIZE = 6
     CONSTANT_OPERATION = EmptyOp()
 
     def time_operation_create(self) -> None:

@@ -11,8 +11,14 @@ VENV_DIR ?= .venv
 export UV_PROJECT_ENVIRONMENT=$(if $(VIRTUAL_ENV),$(VIRTUAL_ENV),$(VENV_DIR))
 
 # allow providing options to uv, such as overriding which extras are installed
-VENV_OPTIONS ?= --extra gui --extra dev --extra bench --extra jax --extra riscv --extra docs
-# VENV_OPTIONS ?= -p pypy3
+# VENV_OPTIONS ?= --extra gui --extra dev --extra bench --extra jax --extra riscv --extra docs
+
+# VENV_OPTIONS ?= --extra bench -p python3.11
+# VENV_OPTIONS ?= --extra bench -p python3.12
+VENV_OPTIONS ?= --extra bench -p python3.13
+# VENV_OPTIONS ?= --extra bench -p python3.13 # +relinking the JIT bin
+# VENV_OPTIONS ?= -p pypy3.11
+# VENV_OPTIONS ?= -p python3.14
 
 # default lit options
 LIT_OPTIONS ?= -v --order=smart

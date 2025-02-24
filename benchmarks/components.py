@@ -98,7 +98,7 @@ class LexPhase(Component):
         """Time lexing a 1024x1024xi8 dense attribute."""
         Component.lex_file(Component.WORKLOAD_LARGE_DENSE_ATTR)
 
-    def ignore_time_dense_attr_hex(self) -> None:
+    def time_dense_attr_hex(self) -> None:
         """Time lexing a 1024x1024xi8 dense attribute given as a hex string."""
         Component.lex_file(Component.WORKLOAD_LARGE_DENSE_ATTR_HEX)
 
@@ -133,20 +133,20 @@ class PatternRewritePhase(Component):
     )
 
     def time_constant_100(self) -> None:
-        """Time pattern rewriting 100 items with the constant folding pass."""
-        Component.constant_fold_module(PatternRewritePhase.PARSED_CONSTANT_100)
-
-    def time_constant_1000(self) -> None:
-        """Time pattern rewriting 1000 items with the constant folding pass."""
-        Component.constant_fold_module(PatternRewritePhase.PARSED_CONSTANT_1000)
-
-    def time_canonicalize_100(self) -> None:
         """Time canonicalising constant folding for 100 items."""
         Component.canonicalize_module(PatternRewritePhase.PARSED_CONSTANT_100)
 
-    def time_canonicalize_1000(self) -> None:
+    def time_constant_1000(self) -> None:
         """Time canonicalising constant folding for 1000 items."""
         Component.canonicalize_module(PatternRewritePhase.PARSED_CONSTANT_1000)
+
+    def time_constant_interp_100(self) -> None:
+        """Time pattern rewriting 100 items with the constant folding pass."""
+        Component.constant_fold_module(PatternRewritePhase.PARSED_CONSTANT_100)
+
+    def time_constant_interp_1000(self) -> None:
+        """Time pattern rewriting 1000 items with the constant folding pass."""
+        Component.constant_fold_module(PatternRewritePhase.PARSED_CONSTANT_1000)
 
     def time_dense_attr_hex(self) -> None:
         """Time canonicalising a 1024x1024xi8 dense attribute given as a hex string."""
@@ -158,35 +158,44 @@ class PatternRewritePhase(Component):
 
 
 class VerifyPhase:
-    """Benchmark verifying in xDSL."""
+    """Benchmark verifying in xDSL.
+
+    For a single rewriting pass, we verify with the input before the pass and
+    the output after the pass.
+
+    Note that this is run on the parsed input, rather than the output of the
+    re-writing pass. This is because constant folding and dead-code elimination
+    reduce the rewritten results to negligibly small sizes, so only the first
+    verification pass contributes to the overall performance.
+    """
 
     PARSED_CONSTANT_100 = Component.parse_module(Component.WORKLOAD_CONSTANT_100)
     PARSED_CONSTANT_1000 = Component.parse_module(Component.WORKLOAD_CONSTANT_1000)
     PARSED_LARGE_DENSE_ATTR_HEX = Component.parse_module(
         Component.WORKLOAD_LARGE_DENSE_ATTR_HEX
-    )
-
-    CANONICALIZED_CONSTANT_100 = Component.canonicalize_module(PARSED_CONSTANT_100)
-    CANONICALIZED_CONSTANT_1000 = Component.canonicalize_module(PARSED_CONSTANT_1000)
-    CANONICALIZED_LARGE_DENSE_ATTR_HEX = Component.canonicalize_module(
-        PARSED_LARGE_DENSE_ATTR_HEX
     )
 
     def time_constant_100(self) -> None:
         """Time verifying constant folding for 100 items."""
-        Component.verify_module(VerifyPhase.CANONICALIZED_CONSTANT_100)
+        Component.verify_module(VerifyPhase.PARSED_CONSTANT_100)
 
     def time_constant_1000(self) -> None:
         """Time verifying constant folding for 1000 items."""
-        Component.verify_module(VerifyPhase.CANONICALIZED_CONSTANT_1000)
+        Component.verify_module(VerifyPhase.PARSED_CONSTANT_1000)
 
     def time_dense_attr_hex(self) -> None:
         """Time verifying a 1024x1024xi8 dense attribute given as a hex string."""
-        Component.verify_module(VerifyPhase.CANONICALIZED_LARGE_DENSE_ATTR_HEX)
+        Component.verify_module(VerifyPhase.PARSED_LARGE_DENSE_ATTR_HEX)
 
 
 class PrintPhase:
-    """Benchmark printing in xDSL."""
+    """Benchmark printing in xDSL.
+
+    Note that this is run on the parsed input, rather than the output of the
+    re-writing pass. This is because constant folding and dead-code elimination
+    reduce the rewritten results to negligibly small sizes, for which printing
+    is very quick.
+    """
 
     PARSED_CONSTANT_100 = Component.parse_module(Component.WORKLOAD_CONSTANT_100)
     PARSED_CONSTANT_1000 = Component.parse_module(Component.WORKLOAD_CONSTANT_1000)
@@ -194,72 +203,108 @@ class PrintPhase:
         Component.WORKLOAD_LARGE_DENSE_ATTR_HEX
     )
 
-    CANONICALIZED_CONSTANT_100 = Component.canonicalize_module(PARSED_CONSTANT_100)
-    CANONICALIZED_CONSTANT_1000 = Component.canonicalize_module(PARSED_CONSTANT_1000)
-    CANONICALIZED_LARGE_DENSE_ATTR_HEX = Component.canonicalize_module(
-        PARSED_LARGE_DENSE_ATTR_HEX
-    )
+    def time_constant_100_input(self) -> None:
+        """Time printing the input to the constant folding for 100 items."""
+        Component.print_module(PrintPhase.PARSED_CONSTANT_100)
 
-    def time_constant_100(self) -> None:
-        """Time printing constant folding for 100 items."""
-        Component.print_module(PrintPhase.CANONICALIZED_CONSTANT_100)
+    def time_constant_1000_input(self) -> None:
+        """Time printing the input to the constant folding for 1000 items."""
+        Component.print_module(PrintPhase.PARSED_CONSTANT_1000)
 
-    def time_constant_1000(self) -> None:
-        """Time printing constant folding for 1000 items."""
-        Component.print_module(PrintPhase.CANONICALIZED_CONSTANT_1000)
-
-    def time_dense_attr_hex(self) -> None:
-        """Time printing a 1024x1024xi8 dense attribute given as a hex string."""
-        Component.print_module(PrintPhase.CANONICALIZED_LARGE_DENSE_ATTR_HEX)
+    def time_dense_attr_hex_input(self) -> None:
+        """Time printing the input to the a 1024x1024xi8 dense attribute given as a hex string."""
+        Component.print_module(PrintPhase.PARSED_LARGE_DENSE_ATTR_HEX)
 
 
 def draw_comparison_chart() -> None:
     """Compare the pipeline phase times for a workload."""
-    import matplotlib.pyplot as plt
+    draw_plots = True
+    try:
+        import matplotlib.pyplot as plt
+    except ImportError:
+        draw_plots = False
+
+    import time
+
     from bench_utils import warmed_timeit
 
+    if draw_plots:
+        plt.style.use("default")
+        plt.rcParams.update(
+            {
+                "grid.alpha": 0.7,
+                "grid.linestyle": "--",
+                "figure.dpi": 100,
+                "font.family": "Menlo",
+            }
+        )
+        plt.title("Pipeline phase times for constant folding 100 items")
+
     phase_functions = {
-        "Lexing": LEXER.time_constant_1000,
-        "Lexing + Parsing": PARSER.time_constant_1000,
-        "Rewriting": PATTERN_REWRITER.time_constant_1000,
-        "Verifying": VERIFIER.time_constant_1000,
-        "Printing": PRINTER.time_constant_1000,
+        "Lexing": LEXER.time_constant_100,
+        "Lexing + Parsing": PARSER.time_constant_100,
+        "Rewriting": PATTERN_REWRITER.time_constant_100,
+        "Verifying": VERIFIER.time_constant_100,
+        "Printing": PRINTER.time_constant_100_input,
     }
+
     raw_phase_times = {
         name: warmed_timeit(func) for name, func in phase_functions.items()
     }
-    phase_times = {
+    print(raw_phase_times)
+    phase_means = {
         "Lexing": raw_phase_times["Lexing"][0],
         "Parsing": raw_phase_times["Lexing + Parsing"][0]
         - raw_phase_times["Lexing"][0],
         "Rewriting": raw_phase_times["Rewriting"][0],
-        "Verifying": raw_phase_times["Verifying"][0],  # * 2  # (in some cases...)
+        "Verifying": raw_phase_times["Verifying"][0],
         "Printing": raw_phase_times["Printing"][0],
+    }
+    phase_medians = {
+        "Lexing": raw_phase_times["Lexing"][1],
+        "Parsing": raw_phase_times["Lexing + Parsing"][1]
+        - raw_phase_times["Lexing"][1],
+        "Rewriting": raw_phase_times["Rewriting"][1],
+        "Verifying": raw_phase_times["Verifying"][1],
+        "Printing": raw_phase_times["Printing"][1],
     }
     phase_errors = {
         "Lexing": raw_phase_times["Lexing"][2],
         "Parsing": raw_phase_times["Lexing + Parsing"][2]
         + raw_phase_times["Lexing"][2],
         "Rewriting": raw_phase_times["Rewriting"][2],
-        "Verifying": raw_phase_times["Verifying"][2],  # * 2  # (in some cases...)
+        "Verifying": raw_phase_times["Verifying"][2],
         "Printing": raw_phase_times["Printing"][2],
     }
 
-    for name in phase_times:
+    for name in phase_means:
         if name in phase_errors:
-            print(f"{name}: {phase_times[name]:.3g} ± {phase_errors[name]:.3g}s")
-    print(f"Total: {sum(phase_times.values()):.3g} ± {sum(phase_errors.values()):.3g}s")
+            print(
+                f"{name}: {phase_means[name]:.3g} ± {phase_errors[name]:.3g}s (median {phase_medians[name]:.3g})"
+            )
+    print(f"Total: {sum(phase_means.values()):.3g} ± {sum(phase_errors.values()):.3g}s")
 
-    plt.bar(
-        phase_times.keys(),
-        phase_times.values(),
-        yerr=[phase_errors[name] for name in phase_times],
-        error_kw={"capsize": 5},
-    )
-    plt.title("Pipeline phase times for constant folding 1000 items")
-    plt.xlabel("Pipeline phase")
-    plt.ylabel("Time [s]")
-    plt.show()
+    if draw_plots:
+        plt.bar(
+            phase_means.keys(),
+            phase_means.values(),
+            yerr=[phase_errors[name] for name in phase_means],
+            error_kw={"capsize": 5},
+            label="mean",
+        )
+        plt.scatter(
+            phase_medians.keys(),
+            phase_medians.values(),
+            label="median",
+        )
+        plt.xlabel("Pipeline phase", fontweight="bold")
+        plt.ylabel("Time [s]", fontweight="bold")
+        plt.grid(axis="y")
+        plt.legend()
+        plt.savefig(
+            f"/Users/edjg/Desktop/ubenchmarks/out{int(time.time())}.pdf", dpi=300
+        )
+        plt.show()
 
 
 if __name__ == "__main__":
@@ -273,29 +318,26 @@ if __name__ == "__main__":
     VERIFIER = VerifyPhase()
     PRINTER = PrintPhase()
 
-    draw_comparison_chart()
-    exit()
-
     BENCHMARKS: dict[str, Callable[[], None]] = {
         "Lexer.empty_program": LEXER.time_empty_program,
         "Lexer.constant_100": LEXER.time_constant_100,
         "Lexer.constant_1000": LEXER.time_constant_1000,
         # "Lexer.dense_attr": LEXER.ignore_time_dense_attr,
-        "Lexer.dense_attr_hex": LEXER.ignore_time_dense_attr_hex,
+        "Lexer.dense_attr_hex": LEXER.time_dense_attr_hex,
         "Parser.constant_100": PARSER.time_constant_100,
         "Parser.constant_1000": PARSER.time_constant_1000,
         # "Parser.dense_attr": PARSER.ignore_time_dense_attr,
         "Parser.dense_attr_hex": PARSER.time_dense_attr_hex,
         "PatternRewriter.constant_100": PATTERN_REWRITER.time_constant_100,
-        "PatternRewriter.canonicalize_100": PATTERN_REWRITER.time_canonicalize_100,
+        "PatternRewriter.constant_interp_100": PATTERN_REWRITER.time_constant_interp_100,
         "PatternRewriter.constant_1000": PATTERN_REWRITER.time_constant_1000,
-        "PatternRewriter.canonicalize_1000": PATTERN_REWRITER.time_canonicalize_1000,
+        "PatternRewriter.constant_interp_1000": PATTERN_REWRITER.time_constant_interp_1000,
         "PatternRewriter.dense_attr_hex": PATTERN_REWRITER.time_dense_attr_hex,
         "Verifier.constant_100": VERIFIER.time_constant_100,
         "Verifier.constant_1000": VERIFIER.time_constant_1000,
         "Verifier.dense_attr_hex": VERIFIER.time_dense_attr_hex,
-        "Printer.constant_100": PRINTER.time_constant_100,
-        "Printer.constant_1000": PRINTER.time_constant_1000,
-        "Printer.dense_attr_hex": PRINTER.time_dense_attr_hex,
+        "Printer.constant_100_input": PRINTER.time_constant_100_input,
+        "Printer.constant_1000_input": PRINTER.time_constant_1000_input,
+        "Printer.dense_attr_hex_input": PRINTER.time_dense_attr_hex_input,
     }
     profile(BENCHMARKS)

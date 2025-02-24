@@ -18,10 +18,24 @@ PROFILERS = ("run", "timeit", "snakeviz", "viztracer", "flameprof")
 def warmed_timeit(
     func: Callable[[], Any], number: int = 10
 ) -> tuple[float, float, float]:
-    """Time a function with warmup"""
+    """Time the contents of a class method with warmup."""
+
+    class EmptyBenchmarkClass:
+        """A benchmark class for the empty function."""
+
+        def empty(self) -> None:
+            """An empty function call."""
+            pass
+
+    benchmark_class = EmptyBenchmarkClass()
     timeit.timeit(func, number=3)
     times = timeit.repeat(func, repeat=number, number=1)
-    return (mean(times), median(times), stdev(times))
+    offset = timeit.repeat(benchmark_class.empty, repeat=number, number=1)
+    return (
+        mean(times) - mean(offset),
+        median(times) - mean(times),
+        stdev(times) + stdev(offset),
+    )
 
 
 def parse_arguments(benchmark_names: list[str]) -> ArgumentParser:
@@ -83,7 +97,7 @@ def timeit_benchmark(
 
 
 def cprofile_benchmark(
-    args: Namespace, benchmarks: dict[str, Callable[[], Any]]
+    args: Namespace, benchmarks: dict[str, Callable[[], Any]], warmup: bool = False
 ) -> Path:
     """Use cProfile to profile a benchmark."""
     benchmark_runs = get_benchmark_runs(args, benchmarks)
@@ -91,6 +105,8 @@ def cprofile_benchmark(
         raise ValueError("Cannot profile multiple benchmarks together")
     name, test = benchmark_runs[0]
     output_prof = args.output / f"{name}.prof"
+    if warmup:
+        test()
     profiler = cProfile.Profile()
     profiler.enable()
     test()
@@ -100,7 +116,7 @@ def cprofile_benchmark(
 
 
 def viztracer_benchmark(
-    args: Namespace, benchmarks: dict[str, Callable[[], Any]]
+    args: Namespace, benchmarks: dict[str, Callable[[], Any]], warmup: bool = False
 ) -> Path:
     """Use VizTracer to profile a benchmark."""
     from viztracer import VizTracer  # pyright: ignore[reportMissingTypeStubs]
@@ -110,6 +126,8 @@ def viztracer_benchmark(
         raise ValueError("Cannot profile multiple benchmarks together")
     name, test = benchmark_runs[0]
     output_prof = args.output / f"{name}.json"
+    if warmup:
+        test()
     with VizTracer(output_file=str(output_prof)):
         test()
     return output_prof
