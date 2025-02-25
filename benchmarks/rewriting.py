@@ -23,7 +23,7 @@ def parse_module(contents: str) -> ModuleOp:
 
 
 EMPTY_WORKLOAD = parse_module(WorkloadBuilder.empty())
-CONSTANT_WORKLOAD = parse_module(WorkloadBuilder.constant_folding(100))
+CONSTANT_WORKLOAD = parse_module(WorkloadBuilder.constant_folding(2000))
 FMADD_WORKLOAD = parse_module(WorkloadBuilder.fmadd(100))
 
 

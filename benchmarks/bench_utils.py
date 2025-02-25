@@ -16,7 +16,7 @@ PROFILERS = ("run", "timeit", "snakeviz", "viztracer", "flameprof")
 
 
 def warmed_timeit(
-    func: Callable[[], Any], number: int = 10
+    func: Callable[[], Any], number: int = 10, warmup: int = 3
 ) -> tuple[float, float, float]:
     """Time the contents of a class method with warmup."""
 
@@ -28,12 +28,12 @@ def warmed_timeit(
             pass
 
     benchmark_class = EmptyBenchmarkClass()
-    timeit.timeit(func, number=3)
+    timeit.timeit(func, number=warmup)
     times = timeit.repeat(func, repeat=number, number=1)
     offset = timeit.repeat(benchmark_class.empty, repeat=number, number=1)
     return (
         mean(times) - mean(offset),
-        median(times) - mean(times),
+        median(times) - mean(offset),
         stdev(times) + stdev(offset),
     )
 

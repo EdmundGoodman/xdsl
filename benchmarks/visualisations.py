@@ -10,6 +10,12 @@ from benchmarks.components import (
     PrintPhase,
     VerifyPhase,
 )
+from benchmarks.workloads import WorkloadBuilder
+from xdsl.context import Context
+from xdsl.dialects.arith import Arith
+from xdsl.dialects.builtin import Builtin, ModuleOp
+from xdsl.parser import Parser as XdslParser
+from xdsl.transforms.canonicalize import CanonicalizePass
 
 LEXER = LexPhase()
 PARSER = ParsePhase()
@@ -90,7 +96,7 @@ def draw_comparison_chart() -> None:
         phase_medians.values(),
         label="median",
     )
-    plt.xlabel("Pipeline phase", fontweight="bold")
+    plt.xlabel("Workload", fontweight="bold")
     plt.ylabel("Time [s]", fontweight="bold")
     plt.grid(axis="y")
     plt.legend()
@@ -98,5 +104,74 @@ def draw_comparison_chart() -> None:
     plt.show()
 
 
+def draw_scaling_plot() -> None:
+    """Plot pattern rewrite scaling."""
+
+    def parse_module(contents: str) -> ModuleOp:
+        """Parse a MLIR file as a module."""
+        parser = XdslParser(CTX, contents)
+        return parser.parse_module()
+
+    import matplotlib.pyplot as plt
+
+    plt.style.use("default")
+    plt.rcParams.update(
+        {
+            "grid.alpha": 0.7,
+            "grid.linestyle": "--",
+            "figure.dpi": 100,
+            "font.family": "Menlo",
+        }
+    )
+    plt.title("Pattern rewrite scaling")
+
+    CTX = Context(allow_unregistered=True)
+    CTX.load_dialect(Arith)
+    CTX.load_dialect(Builtin)
+
+    SIZES = (10, 100, 200, 500, 1000, 2000, 5000, 10000, 20000)
+
+    constant_fold_workloads = {
+        size: parse_module(WorkloadBuilder.constant_folding(size)) for size in SIZES
+    }
+    constant_fold_functions = {
+        str(size): lambda: CanonicalizePass().apply(CTX, constant_fold_workloads[size])
+        for size in SIZES
+    }
+    print("Starting")
+    warmed_timeit(list(constant_fold_functions.values())[3], warmup=100_000)
+    constant_fold_times = {
+        name: warmed_timeit(func, number=500)
+        for name, func in constant_fold_functions.items()
+    }
+    print(constant_fold_times)
+
+    constant_fold_means = {
+        name: times[0] for name, times in constant_fold_times.items()
+    }
+    constant_fold_errors = {
+        name: times[2] for name, times in constant_fold_times.items()
+    }
+
+    for name in constant_fold_means:
+        if name in constant_fold_errors:
+            print(
+                f"{name}: {constant_fold_means[name]:.3g} ± {constant_fold_errors[name]:.3g}s"
+            )
+
+    plt.errorbar(
+        constant_fold_means.keys(),
+        constant_fold_means.values(),
+        yerr=[constant_fold_errors[name] for name in constant_fold_errors],
+        capsize=5,
+        label="Constant folding",
+    )
+    plt.xlabel("Workload size [operations]", fontweight="bold")
+    plt.ylabel("Time [s]", fontweight="bold")
+    plt.grid(axis="y")
+    plt.legend()
+    plt.show()
+
+
 if __name__ == "__main__":
-    draw_comparison_chart()
+    draw_scaling_plot()
