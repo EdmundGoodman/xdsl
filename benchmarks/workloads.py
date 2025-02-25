@@ -38,15 +38,31 @@ class WorkloadBuilder:
                     f'%{i} = "arith.constant"() {{"value" = '
                     f"{random.randint(1, 1000)} : i32}} : () -> i32"
                 )
-        ops.append(f'"test.op"(%{size}) : (i32) -> ()')
+        ops.append(f'"test.op"(%{(size // 2) * 2}) : (i32) -> ()')
         return WorkloadBuilder.wrap_module(ops)
 
-
-class Workloads:
-    """Static workload strings for benchmarking."""
-
-    EMPTY = WorkloadBuilder.empty()
-    WORKLOAD_4 = WorkloadBuilder.constant_folding(4)
-    WORKLOAD_20 = WorkloadBuilder.constant_folding(20)
-    WORKLOAD_100 = WorkloadBuilder.constant_folding(100)
-    WORKLOAD_1000 = WorkloadBuilder.constant_folding(1000)
+    @classmethod
+    def fmadd(cls, size: int = 4) -> str:
+        assert size >= 0
+        random.seed(0)
+        ops: list[str] = []
+        ops.append(
+            '%0 = "arith.constant"() {"value" = '
+            f"{random.randint(1, 1000)} : i32}} : () -> i32"
+        )
+        for i in range(1, size + 1):
+            if i % 4 == 0:
+                ops.append(
+                    f'%{i} = "arith.addi"(%{i - 1}, %{i - 2}) : (i32, i32) -> i32'
+                )
+            elif i % 4 == 3:
+                ops.append(
+                    f'%{i} = "arith.muli"(%{i - 2}, %{i - 3}) : (i32, i32) -> i32'
+                )
+            else:
+                ops.append(
+                    f'%{i} = "arith.constant"() {{"value" = '
+                    f"{random.randint(1, 1000)} : i32}} : () -> i32"
+                )
+        ops.append(f'"test.op"(%{(size // 4) * 4}) : (i32) -> ()')
+        return WorkloadBuilder.wrap_module(ops)
