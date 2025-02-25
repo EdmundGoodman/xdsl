@@ -1,42 +1,58 @@
 #!/usr/bin/env python3
 """Benchmarks for the pattern rewriter of the xDSL implementation."""
 
+from benchmarks.helpers import get_context, parse_module
 from benchmarks.workloads import WorkloadBuilder
-from xdsl.context import Context
 from xdsl.dialects.arith import Arith
-from xdsl.dialects.builtin import Builtin, ModuleOp
-from xdsl.parser import Parser as XdslParser
-from xdsl.printer import Printer
+from xdsl.dialects.builtin import Builtin
 from xdsl.transforms.canonicalize import CanonicalizePass
 
-CTX = Context(allow_unregistered=True)
+CTX = get_context()
 CTX.load_dialect(Arith)
 CTX.load_dialect(Builtin)
 
-MODULE_PRINTER = Printer()
 
-
-def parse_module(contents: str) -> ModuleOp:
-    """Parse a MLIR file as a module."""
-    parser = XdslParser(CTX, contents)
-    return parser.parse_module()
-
-
-EMPTY_WORKLOAD = parse_module(WorkloadBuilder.empty())
-CONSTANT_WORKLOAD = parse_module(WorkloadBuilder.constant_folding(2000))
-FMADD_WORKLOAD = parse_module(WorkloadBuilder.fmadd(100))
-
-
-class PatternRewritePhase:
+class PatternRewrite:
     """Benchmark rewriting in xDSL."""
 
-    def time_constant_folding(self) -> None:
-        """Time canonicalizing constant folding."""
-        CanonicalizePass().apply(CTX, CONSTANT_WORKLOAD)
+    # WORKLOAD_CONSTANT_20 = parse_module(CTX, WorkloadBuilder.constant_folding(20))
+    WORKLOAD_CONSTANT_100 = parse_module(CTX, WorkloadBuilder.constant_folding(100))
+    # WORKLOAD_CONSTANT_500 = parse_module(CTX, WorkloadBuilder.constant_folding(500))
+    WORKLOAD_CONSTANT_1000 = parse_module(CTX, WorkloadBuilder.constant_folding(1000))
+    # WORKLOAD_CONSTANT_2000 = parse_module(CTX, WorkloadBuilder.constant_folding(2000))
+    # WORKLOAD_CONSTANT_10000 = parse_module(CTX, WorkloadBuilder.constant_folding(10000))
+    # WORKLOAD_CONSTANT_100000 = parse_module(CTX, WorkloadBuilder.constant_folding(100000))
 
-    def time_fmadd(self) -> None:
-        """Time canonicalizing fused multiply-adds."""
-        CanonicalizePass().apply(CTX, FMADD_WORKLOAD)
+    # TODO: Does this cost dominate?
+    # CANONICALIZE_PASS = CanonicalizePass()
+
+    # def time_constant_folding_20(self) -> None:
+    #     """Time canonicalizing constant folding."""
+    #     CanonicalizePass().apply(CTX, PatternRewrite.WORKLOAD_CONSTANT_20)
+
+    def time_constant_folding_100(self) -> None:
+        """Time canonicalizing constant folding."""
+        CanonicalizePass().apply(CTX, PatternRewrite.WORKLOAD_CONSTANT_100)
+
+    # def time_constant_folding_500(self) -> None:
+    #     """Time canonicalizing constant folding."""
+    #     CanonicalizePass().apply(CTX, PatternRewrite.WORKLOAD_CONSTANT_500)
+
+    def time_constant_folding_1000(self) -> None:
+        """Time canonicalizing constant folding."""
+        CanonicalizePass().apply(CTX, PatternRewrite.WORKLOAD_CONSTANT_1000)
+
+    # def time_constant_folding_2000(self) -> None:
+    #     """Time canonicalizing constant folding."""
+    #     CanonicalizePass().apply(CTX, PatternRewrite.WORKLOAD_CONSTANT_2000)
+
+    # def time_constant_folding_10000(self) -> None:
+    #     """Time canonicalizing constant folding."""
+    #     CanonicalizePass().apply(CTX, PatternRewrite.WORKLOAD_CONSTANT_10000)
+
+    # def time_constant_folding_100000(self) -> None:
+    #     """Time canonicalizing constant folding."""
+    #     CanonicalizePass().apply(CTX, PatternRewrite.WORKLOAD_CONSTANT_100000)
 
 
 if __name__ == "__main__":
@@ -44,11 +60,14 @@ if __name__ == "__main__":
 
     from bench_utils import profile
 
-    PATTERN_REWRITER = PatternRewritePhase()
+    PATTERN_REWRITER = PatternRewrite()
     BENCHMARKS: dict[str, Callable[[], None]] = {
-        "PatternRewriter.constant_folding": PATTERN_REWRITER.time_constant_folding,
-        "PatternRewriter.fmadd": PATTERN_REWRITER.time_fmadd,
+        # "PatternRewriter.constant_folding_20": PATTERN_REWRITER.time_constant_folding_20,
+        "PatternRewriter.constant_folding_100": PATTERN_REWRITER.time_constant_folding_100,
+        # "PatternRewriter.constant_folding_500": PATTERN_REWRITER.time_constant_folding_500,
+        "PatternRewriter.constant_folding_1000": PATTERN_REWRITER.time_constant_folding_1000,
+        # "PatternRewriter.constant_folding_2000": PATTERN_REWRITER.time_constant_folding_2000,
+        # "PatternRewriter.constant_folding_10000": PATTERN_REWRITER.time_constant_folding_10000,
+        # "PatternRewriter.constant_folding_100000": PATTERN_REWRITER.time_constant_folding_100000,
     }
     profile(BENCHMARKS)
-
-    # MODULE_PRINTER.print_op(FMADD_WORKLOAD)

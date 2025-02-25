@@ -2,6 +2,10 @@
 """Workloads for benchmarking xDSL."""
 
 import random
+from pathlib import Path
+
+BENCHMARKS_DIR = Path(__file__).parent
+EXTRA_MLIR_DIR = BENCHMARKS_DIR / "resources" / "extra_mlir"
 
 
 class WorkloadBuilder:
@@ -43,6 +47,7 @@ class WorkloadBuilder:
 
     @classmethod
     def fmadd(cls, size: int = 4) -> str:
+        """."""
         assert size >= 0
         random.seed(0)
         ops: list[str] = []
@@ -66,3 +71,18 @@ class WorkloadBuilder:
                 )
         ops.append(f'"test.op"(%{(size // 4) * 4}) : (i32) -> ()')
         return WorkloadBuilder.wrap_module(ops)
+
+    @classmethod
+    def extra_mlir_file(cls, name: str) -> str:
+        """."""
+        return (EXTRA_MLIR_DIR / name).read_text()
+
+    @classmethod
+    def large_dense_attr(cls) -> str:
+        """."""
+        return WorkloadBuilder.extra_mlir_file("large_dense_attr.mlir")
+
+    @classmethod
+    def large_dense_attr_hex(cls) -> str:
+        """."""
+        return WorkloadBuilder.extra_mlir_file("large_dense_attr_hex.mlir")

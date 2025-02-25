@@ -16,7 +16,7 @@ PROFILERS = ("run", "timeit", "snakeviz", "viztracer", "flameprof")
 
 
 def warmed_timeit(
-    func: Callable[[], Any], number: int = 10, warmup: int = 3
+    func: Callable[[], Any], number: int = 100, warmup: int = 3
 ) -> tuple[float, float, float]:
     """Time the contents of a class method with warmup."""
 
@@ -86,13 +86,11 @@ def run_benchmark(args: Namespace, benchmarks: dict[str, Callable[[], Any]]) -> 
         print(f"Test {name} ran in: {time.time() - start_time:.5f}s")
 
 
-def timeit_benchmark(
-    args: Namespace, benchmarks: dict[str, Callable[[], Any]], number: int = 50
-) -> None:
+def timeit_benchmark(args: Namespace, benchmarks: dict[str, Callable[[], Any]]) -> None:
     """Use timeit to run a benchmark."""
     benchmark_runs = get_benchmark_runs(args, benchmarks)
     for name, test in benchmark_runs:
-        me, _, std = warmed_timeit(test, number=number)
+        me, _, std = warmed_timeit(test)
         print(f"Test {name} ran in: {me:.3g} ± {std:.3g}s")
 
 
