@@ -2,9 +2,8 @@
 
 import time
 
-import matplotlib.pyplot as plt
-from bench_utils import warmed_timeit
-from components import (
+from benchmarks.bench_utils import warmed_timeit
+from benchmarks.components import (
     LexPhase,
     ParsePhase,
     PatternRewritePhase,
@@ -21,6 +20,9 @@ PRINTER = PrintPhase()
 
 def draw_comparison_chart() -> None:
     """Compare the pipeline phase times for a workload."""
+
+    import matplotlib.pyplot as plt
+
     plt.style.use("default")
     plt.rcParams.update(
         {
