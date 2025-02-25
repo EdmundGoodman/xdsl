@@ -42,10 +42,6 @@ class ImportXDSL:
         """Time importing xDSL using the default asv mechanism."""
         importlib.reload(xdsl)
 
-    def timeraw_import_xdsl(self) -> str:
-        """Time importing xDSL using the `raw` asv mechanism."""
-        return "importlib.reload(xdsl)"
-
 
 class ImportDialects:
     """Benchmark loading dialects in xDSL.
