@@ -123,29 +123,12 @@ class OpCreation:
         OpCreation.CONSTANT_OPERATION.clone()
 
 
-class ImportClasses:
-    """Benchmark the time to import xDSL classes."""
-
-    def ignore_time_import_xdsl_opt(self) -> None:
-        """Import benchmark using the default asv mechanism."""
-        from xdsl.xdsl_opt_main import (
-            xDSLOptMain,  # noqa: F401 # pyright: ignore[reportUnusedImport]
-        )
-
-    def timeraw_import_xdsl_opt(self) -> str:
-        """Import benchmark using the `raw` asv mechanism."""
-        return """
-        from xdsl.xdsl_opt_main import xDSLOptMain
-        """
-
-
 if __name__ == "__main__":
     from collections.abc import Callable
 
     from bench_utils import profile
 
     EXTENSIBILITY = Extensibility()
-    IMPORT_CLASSES = ImportClasses()
     IR_TRAVERSAL = IRTraversal()
     OP_CREATION = OpCreation()
 
@@ -158,6 +141,5 @@ if __name__ == "__main__":
         "Extensibility.trait_check_neg": EXTENSIBILITY.time_trait_check_neg,
         "OpCreation.operation_create": OP_CREATION.time_operation_create,
         "OpCreation.operation_clone": OP_CREATION.time_operation_clone,
-        "ImportClasses.import_xdsl_opt": IMPORT_CLASSES.ignore_time_import_xdsl_opt,
     }
     profile(BENCHMARKS)

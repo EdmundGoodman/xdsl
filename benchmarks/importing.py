@@ -7,6 +7,7 @@ already having imported dependencies.
 
 import importlib
 
+import xdsl
 import xdsl.dialects.affine
 import xdsl.dialects.arith
 import xdsl.dialects.builtin
@@ -32,6 +33,18 @@ import xdsl.interpreters.riscv_scf
 import xdsl.interpreters.riscv_snitch
 import xdsl.interpreters.scf
 import xdsl.interpreters.tensor
+
+
+class ImportXDSL:
+    """Benchmark importing xDSL."""
+
+    def time_import_xdsl(self) -> None:
+        """Time importing xDSL using the default asv mechanism."""
+        importlib.reload(xdsl)
+
+    def timeraw_import_xdsl(self) -> str:
+        """Time importing xDSL using the `raw` asv mechanism."""
+        return "importlib.reload(xdsl)"
 
 
 class ImportDialects:
@@ -102,10 +115,12 @@ if __name__ == "__main__":
 
     from bench_utils import profile
 
+    XDSL = ImportXDSL()
     DIALECTS = ImportDialects()
     INTERPRETERS = ImportInterpreters()
 
     BENCHMARKS: dict[str, Callable[[], None]] = {
+        "xDSL": XDSL.time_import_xdsl,
         "Dialects.affine_load": DIALECTS.ignore_time_affine_load,
         "Dialects.arith_load": DIALECTS.ignore_time_arith_load,
         "Dialects.builtin_load": DIALECTS.ignore_time_builtin_load,
